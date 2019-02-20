@@ -1,0 +1,8 @@
+joblib==0.11
+sklearn
+pandas
+numpy
+argparse
+tensorflow
+h5py
+keras
