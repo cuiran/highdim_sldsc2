@@ -11,6 +11,7 @@ from keras.layers.core import Dense
 from keras import optimizers
 from keras import regularizers
 import shrink
+import mlasso
 import sys
 
 def get_data_singlefile(args):
@@ -50,7 +51,8 @@ def get_data_singlefile(args):
         w = compute_weights(X,y,wld,outfile_prefix,SNP_info)
         if args.just_weights:
             sys.exit()
-    all_merged['L2'] = w
+    all_merged['W'] = w
+    all_merged['WLD'] = wld
 
     out_chr = int(out_chr)
     if out_chr == 0:
@@ -61,8 +63,8 @@ def get_data_singlefile(args):
 
     print('spliting training and testing data')
     y_train = np.array(train_df['CHISQ'])
-    w_train = np.array(train_df['L2'])
-    train_ld = train_df.drop(['CHR','SNP','BP','CHISQ','L2'],axis=1)
+    w_train = np.array(train_df['W'])
+    train_ld = train_df.drop(['CHR','SNP','BP','CHISQ','L2','W','WLD'],axis=1)
     X_train = np.array(train_ld.iloc[:,:])
 
     if out_chr == 0:
@@ -71,8 +73,8 @@ def get_data_singlefile(args):
         w_test = 0
     else:
         y_test = np.array(test_df['CHISQ'])
-        w_test = np.array(test_df['L2'])
-        test_ld = test_df.drop(['CHR','SNP','BP','CHISQ','L2'],axis=1)
+        w_test = np.array(test_df['WLD'])
+        test_ld = test_df.drop(['CHR','SNP','BP','CHISQ','L2','W','WLD'],axis=1)
         X_test = np.array(test_ld.iloc[:,:])
     return X_train,X_test,y_train,y_test,w_train,w_test,N
 
@@ -90,22 +92,20 @@ def get_M(mprefix,msuffix):
 def compute_weights(ld,ss,wld,outfile_prefix,SNP_info_df):
     # return regression weights, approximately the conditional variance
     wld = np.array(np.fmax(wld,1.0))
-    #M = ld.shape[0]
-    #pdb.set_trace()
-    #sum_ld = np.sum(ld)
-    #sum_ss = np.sum(ss)
-    #l = sum_ld/M
-    #s = sum_ss/M
-    #Ntau_hat = (s-1)/l
-    #sum_ld_col = np.sum(ld,axis=1)
-    #sum_ld_col = np.fmax(sum_ld_col,1.0)
-    #het_w = 2*((Ntau_hat*sum_ld_col +1)**2)
-    #het_w = np.fmax(het_w,1.0)
-    #w = np.multiply(het_w,wld)
-    w = wld
-    #SNP_info_df['WEIGHT'] = w
-    #SNP_info_df.to_csv(outfile_prefix+'_reg_weights.csv.tmp',sep='\t',index=False)
-    #print('weights stored at '+outfile_prefix+'_reg_weights.csv.tmp')
+    M = ld.shape[0]
+    sum_ld = np.sum(ld)
+    sum_ss = np.sum(ss)
+    l = sum_ld/M
+    s = sum_ss/M
+    Ntau_hat = (s-1)/l
+    sum_ld_col = np.sum(ld,axis=1)
+    sum_ld_col = np.fmax(sum_ld_col,1.0)
+    het_w = 2*((Ntau_hat*sum_ld_col +1)**2)
+    het_w = np.fmax(het_w,1.0)
+    w = np.multiply(het_w,wld)
+    SNP_info_df['WEIGHT'] = w
+    SNP_info_df.to_csv(outfile_prefix+'_reg_weights.csv.tmp',sep='\t',index=False)
+    print('weights stored at '+outfile_prefix+'_reg_weights.csv.tmp')
     return w
 
 def compute_weights2(ld,ss,wld,outfile_prefix,M,N):
