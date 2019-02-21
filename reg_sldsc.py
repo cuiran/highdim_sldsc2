@@ -48,7 +48,7 @@ def get_data_singlefile(args):
         print('computing regression weights')
         #M = get_M(args.annot_prefix,'.l2.M')
         SNP_info = all_merged[['CHR','SNP','BP']].copy()
-        w = compute_weights(X,y,wld,outfile_prefix,SNP_info)
+        w = compute_weights(X,y,wld,outfile_prefix,SNP_info,args.only_wld)
         if args.just_weights:
             sys.exit()
     all_merged['W'] = w
@@ -89,7 +89,7 @@ def get_M(mprefix,msuffix):
     m = np.array(mdf.sum())
     return m
 
-def compute_weights(ld,ss,wld,outfile_prefix,SNP_info_df):
+def compute_weights(ld,ss,wld,outfile_prefix,SNP_info_df,only_wld):
     # return regression weights, approximately the conditional variance
     wld = np.array(np.fmax(wld,1.0))
     M = ld.shape[0]
@@ -103,6 +103,8 @@ def compute_weights(ld,ss,wld,outfile_prefix,SNP_info_df):
     het_w = 2*((Ntau_hat*sum_ld_col +1)**2)
     het_w = np.fmax(het_w,1.0)
     w = np.multiply(het_w,wld)
+    if only_wld:
+        w = wld
     SNP_info_df['WEIGHT'] = w
     SNP_info_df.to_csv(outfile_prefix+'_reg_weights.csv.tmp',sep='\t',index=False)
     print('weights stored at '+outfile_prefix+'_reg_weights.csv.tmp')
@@ -425,6 +427,7 @@ if __name__=='__main__':
     parser.add_argument('--compute_varbeta',action='store_true')
     parser.add_argument('--alpha_file')
     parser.add_argument('--just_weights',action='store_true',help='break after the weights are stored')
+    parser.add_argument('--only_wld',action='store_true',help='only use weights_ld to fit and to evaluate')
     args = parser.parse_args()
 
     if args.run_reg:
